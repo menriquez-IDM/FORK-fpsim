@@ -19,6 +19,11 @@ Benishangul-Gumuz,Health,2.631578891
 Benishangul-Gumuz,Knowledge,0
 Benishangul-Gumuz,No need,81.57894746
 Benishangul-Gumuz,Opposition,13.15789476
+Central,Access,3.435114509
+Central,Health,27.48091603
+Central,Knowledge,0.76335876
+Central,No need,50.76335878
+Central,Opposition,17.55725192
 Dire Dawa,Access,0
 Dire Dawa,Health,10.25641029
 Dire Dawa,Knowledge,0
@@ -39,16 +44,26 @@ Oromia,Health,29.68036532
 Oromia,Knowledge,2.28310502
 Oromia,No need,46.11872145
 Oromia,Opposition,19.1780822
-SNNPR,Access,3.435114509
-SNNPR,Health,27.48091603
-SNNPR,Knowledge,0.76335876
-SNNPR,No need,50.76335878
-SNNPR,Opposition,17.55725192
+Sidama,Access,3.435114509
+Sidama,Health,27.48091603
+Sidama,Knowledge,0.76335876
+Sidama,No need,50.76335878
+Sidama,Opposition,17.55725192
 Somali,Access,0
 Somali,Health,0
 Somali,Knowledge,18.18181779
 Somali,No need,54.54545445
 Somali,Opposition,27.27272776
+South,Access,3.435114509
+South,Health,27.48091603
+South,Knowledge,0.76335876
+South,No need,50.76335878
+South,Opposition,17.55725192
+South West,Access,3.435114509
+South West,Health,27.48091603
+South West,Knowledge,0.76335876
+South West,No need,50.76335878
+South West,Opposition,17.55725192
 Tigray,Access,0.7352941
 Tigray,Health,21.32352941
 Tigray,Knowledge,0
