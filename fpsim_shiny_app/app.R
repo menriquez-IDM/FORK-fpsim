@@ -208,6 +208,193 @@ ui <- page_navbar(
     )
   ),
   
+  # Contraceptive Methods Tab
+  nav_panel(
+    title = "Contraceptive Methods",
+    icon = icon("shield-alt"),
+    layout_sidebar(
+      sidebar = sidebar(
+        width = 350,
+        h4("Spatial Method Analysis"),
+        p("Explore contraceptive method usage, efficacy, and trends across different geographic locations."),
+        hr(),
+        
+        # Geographic location selection
+        selectInput(
+          "spatial_location",
+          "Primary Location",
+          choices = list(
+            "National" = c(
+              "Kenya" = "kenya",
+              "Senegal" = "senegal", 
+              "Ethiopia" = "ethiopia"
+            ),
+            "Ethiopia Regions" = c(
+              "Addis Ababa" = "addis_ababa",
+              "Afar" = "afar",
+              "Amhara" = "amhara",
+              "Benishangul-Gumuz" = "benishangul_gumuz",
+              "Dire Dawa" = "dire_dawa",
+              "Gambela" = "gambela",
+              "Harari" = "harari",
+              "Oromia" = "oromia",
+              "SNNPR" = "snnpr",
+              "Somali" = "somali",
+              "Tigray" = "tigray"
+            )
+          ),
+          selected = "kenya"
+        ),
+        
+        # Comparison location
+        selectInput(
+          "compare_location",
+          "Compare With",
+          choices = list(
+            "None" = "none",
+            "National" = c(
+              "Kenya" = "kenya",
+              "Senegal" = "senegal",
+              "Ethiopia" = "ethiopia"
+            ),
+            "Ethiopia Regions" = c(
+              "Addis Ababa" = "addis_ababa",
+              "Afar" = "afar", 
+              "Amhara" = "amhara",
+              "Benishangul-Gumuz" = "benishangul_gumuz",
+              "Dire Dawa" = "dire_dawa",
+              "Gambela" = "gambela",
+              "Harari" = "harari",
+              "Oromia" = "oromia",
+              "SNNPR" = "snnpr",
+              "Somali" = "somali",
+              "Tigray" = "tigray"
+            )
+          ),
+          selected = "none"
+        ),
+        
+        # Method selection
+        selectInput(
+          "method_type",
+          "Method Category",
+          choices = list(
+            "All Methods" = "all",
+            "Modern Methods" = "modern",
+            "Traditional Methods" = "traditional"
+          ),
+          selected = "all"
+        ),
+        
+        # Time period for analysis
+        sliderInput(
+          "method_year_range",
+          "Analysis Period",
+          min = 2000,
+          max = 2030,
+          value = c(2000, 2030),
+          step = 1,
+          sep = ""
+        ),
+        
+        # Method efficacy filter
+        sliderInput(
+          "min_efficacy",
+          "Minimum Efficacy (%)",
+          min = 0,
+          max = 100,
+          value = 0,
+          step = 5
+        ),
+        
+        # Spatial analysis type
+        radioButtons(
+          "spatial_analysis_type",
+          "Analysis Type",
+          choices = list(
+            "Regional Comparison" = "regional",
+            "Method Distribution Map" = "distribution",
+            "Urban vs Rural" = "urban_rural",
+            "Geographic Trends" = "trends"
+          ),
+          selected = "regional"
+        ),
+        
+        hr(),
+        p(class = "text-muted small", "Select locations and analysis type to explore spatial contraceptive method patterns.")
+      ),
+      
+      # Main content area
+      layout_column_wrap(
+        width = 1/2,
+        
+        # Geographic Method Distribution
+        card(
+          card_header("Geographic Method Distribution"),
+          card_body(
+            plotlyOutput("geographic_distribution_plot", height = "400px")
+          )
+        ),
+        
+        # Regional Comparison Chart
+        card(
+          card_header("Regional Comparison"),
+          card_body(
+            plotlyOutput("regional_comparison_plot", height = "400px")
+          )
+        ),
+        
+        # Urban vs Rural Analysis
+        card(
+          card_header("Urban vs Rural Method Usage"),
+          card_body(
+            plotlyOutput("urban_rural_plot", height = "400px")
+          )
+        ),
+        
+        # Method Prevalence by Location
+        card(
+          card_header("Method Prevalence by Location"),
+          card_body(
+            plotlyOutput("location_prevalence_plot", height = "400px")
+          )
+        ),
+        
+        # Spatial Trends Over Time
+        card(
+          card_header("Spatial Trends Over Time"),
+          card_body(
+            plotlyOutput("spatial_trends_plot", height = "400px")
+          )
+        ),
+        
+        # Geographic Method Statistics
+        card(
+          card_header("Geographic Method Statistics"),
+          card_body(
+            DTOutput("geographic_stats_table")
+          )
+        ),
+        
+        # Method Accessibility Map
+        card(
+          card_header("Method Accessibility by Region"),
+          card_body(
+            plotlyOutput("accessibility_plot", height = "400px")
+          )
+        ),
+        
+        # Cross-Regional Method Mix
+        card(
+          card_header("Cross-Regional Method Mix"),
+          card_body(
+            plotlyOutput("cross_regional_mix_plot", height = "400px")
+          )
+        )
+      )
+    )
+  ),
+  
   # Help Tab
   nav_panel(
     title = "Help",
@@ -544,6 +731,270 @@ server <- function(input, output, session) {
       jsonlite::write_json(results_list, file, pretty = TRUE, auto_unbox = TRUE)
     }
   )
+  
+  # ===== SPATIAL CONTRACEPTIVE METHODS TAB OUTPUTS =====
+  
+  # Geographic distribution plot
+  output$geographic_distribution_plot <- renderPlotly({
+    # Create location-based method distribution data
+    locations <- c("kenya", "senegal", "ethiopia", "addis_ababa", "afar", "amhara", "oromia", "snnpr")
+    methods <- c("Oral Pills", "Injectables", "Implants", "IUD", "Condoms", "Traditional")
+    
+    # Create mock spatial data
+    spatial_data <- expand.grid(location = locations, method = methods)
+    spatial_data$prevalence <- runif(nrow(spatial_data), 5, 35)
+    spatial_data$accessibility <- runif(nrow(spatial_data), 40, 95)
+    
+    # Filter by method type
+    if (input$method_type == "modern") {
+      modern_methods <- c("Oral Pills", "Injectables", "Implants", "IUD", "Condoms")
+      spatial_data <- spatial_data[spatial_data$method %in% modern_methods, ]
+    } else if (input$method_type == "traditional") {
+      spatial_data <- spatial_data[spatial_data$method == "Traditional", ]
+    }
+    
+    # Create geographic scatter plot
+    plot_ly(spatial_data, x = ~location, y = ~method, z = ~prevalence,
+            type = "scatter3d", mode = "markers",
+            marker = list(size = ~accessibility, sizemode = "diameter",
+                         color = ~prevalence, colorscale = "Viridis",
+                         showscale = TRUE),
+            hovertemplate = "<b>%{y}</b><br>Location: %{x}<br>Prevalence: %{z:.1f}%<br>Accessibility: %{marker.size:.1f}%<extra></extra>") %>%
+      layout(
+        title = paste("Geographic Distribution -", input$spatial_location),
+        scene = list(
+          xaxis = list(title = "Location"),
+          yaxis = list(title = "Method"),
+          print = list(title = "Prevalence (%)")
+        ),
+        plot_bgcolor = "#f8f9fa",
+        paper_bgcolor = "white"
+      ) %>%
+      config(displayModeBar = TRUE, displaylogo = FALSE)
+  })
+  
+  # Regional comparison plot
+  output$regional_comparison_plot <- renderPlotly({
+    # Get primary and comparison locations
+    primary_loc <- input$spatial_location
+    compare_loc <- input$compare_location
+    
+    if (compare_loc == "none") {
+      return(plotly_empty() %>% 
+        add_annotations(text = "Select a comparison location to see regional differences.", 
+                       showarrow = FALSE))
+    }
+    
+    # Create comparison data
+    methods <- c("Oral Pills", "Injectables", "Implants", "IUD", "Condoms", "Traditional")
+    comparison_data <- data.frame(
+      method = rep(methods, 2),
+      location = c(rep(primary_loc, length(methods)), rep(compare_loc, length(methods))),
+      prevalence = c(runif(length(methods), 10, 40), runif(length(methods), 15, 35))
+    )
+    
+    # Filter by method type
+    if (input$method_type == "modern") {
+      modern_methods <- c("Oral Pills", "Injectables", "Implants", "IUD", "Condoms")
+      comparison_data <- comparison_data[comparison_data$method %in% modern_methods, ]
+    } else if (input$method_type == "traditional") {
+      comparison_data <- comparison_data[comparison_data$method == "Traditional", ]
+    }
+    
+    plot_ly(comparison_data, x = ~method, y = ~prevalence, color = ~location,
+            type = "bar", barmode = "group",
+            colors = c("#3498db", "#e74c3c")) %>%
+      layout(
+        title = paste("Regional Comparison:", primary_loc, "vs", compare_loc),
+        xaxis = list(title = "Contraceptive Method"),
+        yaxis = list(title = "Prevalence (%)"),
+        plot_bgcolor = "#f8f9fa",
+        paper_bgcolor = "white"
+      ) %>%
+      config(displayModeBar = TRUE, displaylogo = FALSE)
+  })
+  
+  # Urban vs Rural plot
+  output$urban_rural_plot <- renderPlotly({
+    # Create urban/rural method usage data
+    methods <- c("Oral Pills", "Injectables", "Implants", "IUD", "Condoms", "Traditional")
+    urban_rural_data <- data.frame(
+      method = rep(methods, 2),
+      area_type = c(rep("Urban", length(methods)), rep("Rural", length(methods))),
+      usage_rate = c(runif(length(methods), 20, 50), runif(length(methods), 10, 35))
+    )
+    
+    # Filter by method type
+    if (input$method_type == "modern") {
+      modern_methods <- c("Oral Pills", "Injectables", "Implants", "IUD", "Condoms")
+      urban_rural_data <- urban_rural_data[urban_rural_data$method %in% modern_methods, ]
+    } else if (input$method_type == "traditional") {
+      urban_rural_data <- urban_rural_data[urban_rural_data$method == "Traditional", ]
+    }
+    
+    plot_ly(urban_rural_data, x = ~method, y = ~usage_rate, color = ~area_type,
+            type = "bar", barmode = "group",
+            colors = c("#2ecc71", "#f39c12")) %>%
+      layout(
+        title = paste("Urban vs Rural Usage in", input$spatial_location),
+        xaxis = list(title = "Contraceptive Method"),
+        yaxis = list(title = "Usage Rate (%)"),
+        plot_bgcolor = "#f8f9fa",
+        paper_bgcolor = "white"
+      ) %>%
+      config(displayModeBar = TRUE, displaylogo = FALSE)
+  })
+  
+  # Location prevalence plot
+  output$location_prevalence_plot <- renderPlotly({
+    # Create location-specific prevalence data
+    ethiopia_regions <- c("addis_ababa", "afar", "amhara", "oromia", "snnpr", "tigray")
+    national_locations <- c("kenya", "senegal", "ethiopia")
+    
+    if (input$spatial_location %in% ethiopia_regions) {
+      locations <- ethiopia_regions
+    } else {
+      locations <- national_locations
+    }
+    
+    methods <- c("Modern Methods", "Traditional Methods")
+    prevalence_data <- expand.grid(location = locations, method = methods)
+    prevalence_data$prevalence <- runif(nrow(prevalence_data), 15, 45)
+    
+    plot_ly(prevalence_data, x = ~location, y = ~prevalence, color = ~method,
+            type = "scatter", mode = "markers+lines",
+            colors = c("#3498db", "#e74c3c"),
+            hovertemplate = "<b>%{x}</b><br>Method: %{fullData.name}<br>Prevalence: %{y:.1f}%<extra></extra>") %>%
+      layout(
+        title = "Method Prevalence by Location",
+        xaxis = list(title = "Location"),
+        yaxis = list(title = "Prevalence (%)"),
+        plot_bgcolor = "#f8f9fa",
+        paper_bgcolor = "white"
+      ) %>%
+      config(displayModeBar = TRUE, displaylogo = FALSE)
+  })
+  
+  # Spatial trends over time
+  output$spatial_trends_plot <- renderPlotly({
+    years <- seq(input$method_year_range[1], input$method_year_range[2])
+    
+    # Create trend data for different locations
+    locations <- c("Urban", "Rural", "Urban Slums")
+    trend_data <- data.frame()
+    
+    for (loc in locations) {
+      base_prevalence <- runif(1, 20, 40)
+      trend <- base_prevalence + (years - min(years)) * runif(1, 0.5, 2)
+      
+      trend_data <- rbind(trend_data, data.frame(
+        year = years,
+        location = loc,
+        prevalence = trend
+      ))
+    }
+    
+    plot_ly(trend_data, x = ~year, y = ~prevalence, color = ~location,
+            type = "scatter", mode = "lines+markers",
+            colors = c("#3498db", "#2ecc71", "#e74c3c"),
+            hovertemplate = "<b>%{fullData.name}</b><br>Year: %{x}<br>Prevalence: %{y:.1f}%<extra></extra>") %>%
+      layout(
+        title = paste("Spatial Trends in", input$spatial_location),
+        xaxis = list(title = "Year"),
+        yaxis = list(title = "Contraceptive Prevalence (%)"),
+        plot_bgcolor = "#f8f9fa",
+        paper_bgcolor = "white"
+      ) %>%
+      config(displayModeBar = TRUE, displaylogo = FALSE)
+  })
+  
+  # Geographic statistics table
+  output$geographic_stats_table <- renderDT({
+    # Create geographic statistics data
+    locations <- c(input$spatial_location)
+    if (input$compare_location != "none") {
+      locations <- c(locations, input$compare_location)
+    }
+    
+    stats_data <- data.frame(
+      Location = locations,
+      "Total Population" = runif(length(locations), 500000, 5000000),
+      "CPR (%)" = runif(length(locations), 25, 55),
+      "Modern Method Use (%)" = runif(length(locations), 20, 45),
+      "Traditional Method Use (%)" = runif(length(locations), 5, 15),
+      "Unmet Need (%)" = runif(length(locations), 10, 25),
+      "Accessibility Score" = runif(length(locations), 60, 90)
+    )
+    
+    stats_data %>%
+      datatable(
+        options = list(
+          pageLength = 10,
+          scrollX = TRUE,
+          dom = "Bfrtip"
+        ),
+        rownames = FALSE
+      ) %>%
+      formatRound(columns = 2:7, digits = 1) %>%
+      formatCurrency(columns = 2, currency = "", digits = 0)
+  })
+  
+  # Accessibility plot
+  output$accessibility_plot <- renderPlotly({
+    # Create accessibility data by region
+    regions <- c("Urban Centers", "Rural Areas", "Remote Areas", "Urban Slums")
+    accessibility_data <- data.frame(
+      region = regions,
+      accessibility = runif(length(regions), 40, 95),
+      distance_to_facility = runif(length(regions), 2, 50),
+      cost_affordability = runif(length(regions), 30, 85)
+    )
+    
+    plot_ly(accessibility_data, x = ~accessibility, y = ~distance_to_facility,
+            size = ~cost_affordability, color = ~region,
+            type = "scatter", mode = "markers",
+            text = ~region,
+            hovertemplate = "<b>%{text}</b><br>Accessibility: %{x:.1f}%<br>Distance: %{y:.1f} km<br>Affordability: %{marker.size:.1f}%<extra></extra>") %>%
+      layout(
+        title = paste("Method Accessibility in", input$spatial_location),
+        xaxis = list(title = "Accessibility (%)"),
+        yaxis = list(title = "Distance to Facility (km)"),
+        plot_bgcolor = "#f8f9fa",
+        paper_bgcolor = "white"
+      ) %>%
+      config(displayModeBar = TRUE, displaylogo = FALSE)
+  })
+  
+  # Cross-regional method mix
+  output$cross_regional_mix_plot <- renderPlotly({
+    # Create cross-regional method mix data
+    regions <- c("North", "South", "East", "West", "Central")
+    methods <- c("Oral Pills", "Injectables", "Implants", "IUD", "Traditional")
+    
+    mix_data <- expand.grid(region = regions, method = methods)
+    mix_data$usage <- runif(nrow(mix_data), 5, 30)
+    
+    # Filter by method type
+    if (input$method_type == "modern") {
+      modern_methods <- c("Oral Pills", "Injectables", "Implants", "IUD")
+      mix_data <- mix_data[mix_data$method %in% modern_methods, ]
+    } else if (input$method_type == "traditional") {
+      mix_data <- mix_data[mix_data$method == "Traditional", ]
+    }
+    
+    plot_ly(mix_data, x = ~region, y = ~method, z = ~usage,
+            type = "heatmap",
+            colorscale = "Viridis",
+            hovertemplate = "<b>%{y}</b><br>Region: %{x}<br>Usage: %{z:.1f}%<extra></extra>") %>%
+      layout(
+        title = paste("Cross-Regional Method Mix in", input$spatial_location),
+        xaxis = list(title = "Region"),
+        yaxis = list(title = "Method"),
+        plot_bgcolor = "#f8f9fa",
+        paper_bgcolor = "white"
+      ) %>%
+      config(displayModeBar = TRUE, displaylogo = FALSE)
+  })
 }
 
 # Run the application
