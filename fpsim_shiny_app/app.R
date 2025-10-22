@@ -33,56 +33,24 @@ ui <- page_navbar(
     tags$script(src = "js/custom.js")
   ),
   
-  # Dashboard Tab
+  # FPsim Interactive (Combined Dashboard & Simulation)
   nav_panel(
-    title = "Dashboard",
-    icon = icon("home"),
+    title = "FPsim Interactive",
+    icon = icon("play-circle"),
     layout_sidebar(
       sidebar = sidebar(
-        width = 300,
+        width = 400,
         h4("Quick Start"),
-        p("Welcome to FPsim Interactive! Select a location and run your first simulation."),
+        p("Welcome to FPsim Interactive! Configure your simulation and run it to see results."),
         hr(),
         actionButton(
           "quick_start",
           "Run Example Simulation",
           icon = icon("play"),
           class = "btn-primary btn-lg w-100"
-        )
-      ),
-      card(
-        card_header("About FPsim"),
-        card_body(
-          p("FPsim is a stochastic agent-based model for family planning research, developed by the Institute for Disease Modeling."),
-          h5("Key Features:"),
-          tags$ul(
-            tags$li("Agent-based simulation of women's reproductive lives"),
-            tags$li("10 contraceptive methods with realistic switching"),
-            tags$li("Calibrated data for Kenya, Senegal, and Ethiopia (11 regions)"),
-            tags$li("Scenario comparison and intervention analysis"),
-            tags$li("Interactive visualizations and reports")
-          ),
-          hr(),
-          h5("Quick Links:"),
-          tags$a(href = "https://docs.fpsim.org", target = "_blank", 
-                 icon("book"), " Documentation"),
-          " | ",
-          tags$a(href = "#", "Video Tutorials"),
-          " | ",
-          tags$a(href = "https://github.com/fpsim/fpsim", target = "_blank",
-                 icon("github"), " GitHub")
-        )
-      )
-    )
-  ),
-  
-  # Configure Tab
-  nav_panel(
-    title = "Configure",
-    icon = icon("sliders"),
-    layout_sidebar(
-      sidebar = sidebar(
-        width = 350,
+        ),
+        hr(),
+        
         h4("Simulation Parameters"),
         
         # Location selection
@@ -160,81 +128,90 @@ ui <- page_navbar(
           "Reset to Defaults",
           icon = icon("undo"),
           class = "btn-outline-secondary w-100"
-        )
-      ),
-      
-      # Main panel with parameter summary
-      card(
-        card_header("Configuration Summary"),
-        card_body(
-          uiOutput("param_summary")
-        )
-      ),
-      
-      card(
-        card_header("Advanced Parameters"),
-        card_body(
-          p("Additional parameters will be available in future updates:"),
-          tags$ul(
-            tags$li("Mortality rates (maternal, infant)"),
-            tags$li("Urban/rural distribution"),
-            tags$li("Contraceptive method efficacy"),
-            tags$li("Sexual activity patterns"),
-            tags$li("Education parameters")
+        ),
+        
+        hr(),
+        
+        # Configuration summary
+        card(
+          card_header("Configuration Summary"),
+          card_body(
+            uiOutput("param_summary")
           )
         )
-      )
-    )
-  ),
-  
-  # Results Tab
-  nav_panel(
-    title = "Results",
-    icon = icon("chart-line"),
-    layout_columns(
-      col_widths = c(12, 6, 6),
-      
-      # Status card
-      card(
-        card_header("Simulation Status"),
-        card_body(
-          uiOutput("sim_status")
-        )
       ),
       
-      # Population plot
-      card(
-        full_screen = TRUE,
-        card_header("Population Over Time"),
-        card_body(
-          plotlyOutput("plot_population", height = "400px")
-        )
-      ),
-      
-      # Deaths plot
-      card(
-        full_screen = TRUE,
-        card_header("Cumulative Deaths"),
-        card_body(
-          plotlyOutput("plot_deaths", height = "400px")
-        )
-      ),
-      
-      # Summary statistics
-      card(
-        card_header("Summary Statistics"),
-        card_body(
-          DTOutput("summary_table")
-        )
-      ),
-      
-      # Results data
-      card(
-        card_header("Results Data"),
-        card_body(
-          p("Download simulation results:"),
-          downloadButton("download_csv", "Download CSV", class = "btn-sm"),
-          downloadButton("download_json", "Download JSON", class = "btn-sm")
+      # Main content area with dashboard info and results
+      layout_columns(
+        col_widths = c(12, 6, 6),
+        
+        # About FPsim card
+        card(
+          card_header("About FPsim"),
+          card_body(
+            p("FPsim is a stochastic agent-based model for family planning research, developed by the Institute for Disease Modeling."),
+            h5("Key Features:"),
+            tags$ul(
+              tags$li("Agent-based simulation of women's reproductive lives"),
+              tags$li("10 contraceptive methods with realistic switching"),
+              tags$li("Calibrated data for Kenya, Senegal, and Ethiopia (11 regions)"),
+              tags$li("Scenario comparison and intervention analysis"),
+              tags$li("Interactive visualizations and reports")
+            ),
+            hr(),
+            h5("Quick Links:"),
+            tags$a(href = "https://docs.fpsim.org", target = "_blank", 
+                   icon("book"), " Documentation"),
+            " | ",
+            tags$a(href = "#", "Video Tutorials"),
+            " | ",
+            tags$a(href = "https://github.com/fpsim/fpsim", target = "_blank",
+                   icon("github"), " GitHub")
+          )
+        ),
+        
+        # Status card
+        card(
+          card_header("Simulation Status"),
+          card_body(
+            uiOutput("sim_status")
+          )
+        ),
+        
+        # Summary statistics
+        card(
+          card_header("Summary Statistics"),
+          card_body(
+            DTOutput("summary_table")
+          )
+        ),
+        
+        # Population plot
+        card(
+          full_screen = TRUE,
+          card_header("Population Over Time"),
+          card_body(
+            plotlyOutput("plot_population", height = "400px")
+          )
+        ),
+        
+        # Deaths plot
+        card(
+          full_screen = TRUE,
+          card_header("Cumulative Deaths"),
+          card_body(
+            plotlyOutput("plot_deaths", height = "400px")
+          )
+        ),
+        
+        # Results data
+        card(
+          card_header("Results Data"),
+          card_body(
+            p("Download simulation results:"),
+            downloadButton("download_csv", "Download CSV", class = "btn-sm"),
+            downloadButton("download_json", "Download JSON", class = "btn-sm")
+          )
         )
       )
     )
@@ -249,9 +226,9 @@ ui <- page_navbar(
       card_body(
         h4("How to use FPsim Interactive"),
         tags$ol(
-          tags$li(strong("Configure:"), " Choose a location, set population size and time period"),
+          tags$li(strong("Configure:"), " Choose a location, set population size and time period in the Simulation tab"),
           tags$li(strong("Run:"), " Click 'Run Simulation' to execute the model"),
-          tags$li(strong("Analyze:"), " View results, explore visualizations"),
+          tags$li(strong("Analyze:"), " View results and visualizations in the same tab"),
           tags$li(strong("Export:"), " Download data for further analysis")
         ),
         hr(),
@@ -394,8 +371,7 @@ server <- function(input, output, session) {
     updateSliderInput(session, "year_range", value = c(2015, 2025))
     updateSliderInput(session, "exposure_factor", value = 1.0)
     
-    # Switch to configure tab
-    updateNavbarPage(session, "FPsim Interactive", selected = "Configure")
+    # Switch to main tab (already on the main tab, no need to switch)
     
     # Auto-run after brief delay
     Sys.sleep(0.5)
