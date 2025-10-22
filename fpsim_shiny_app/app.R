@@ -35,24 +35,15 @@ ui <- page_navbar(
   
   # FPsim Interactive (Combined Dashboard & Simulation)
   nav_panel(
-    title = "FPsim Interactive",
+    title = "Dashboard",
     icon = icon("play-circle"),
     layout_sidebar(
       sidebar = sidebar(
         width = 400,
-        h4("Quick Start"),
         p("Welcome to FPsim Interactive! Configure your simulation and run it to see results."),
         hr(),
-        actionButton(
-          "quick_start",
-          "Run Example Simulation",
-          icon = icon("play"),
-          class = "btn-primary btn-lg w-100"
-        ),
-        hr(),
-        
         h4("Simulation Parameters"),
-        
+       
         # Location selection
         selectInput(
           "location",
@@ -257,6 +248,8 @@ ui <- page_navbar(
   )
 )
 
+# FPsim initialization is handled in global.R
+
 # Define Server
 server <- function(input, output, session) {
   
@@ -269,19 +262,7 @@ server <- function(input, output, session) {
     error_msg = NULL
   )
   
-  # Initialize Python/FPsim on startup
-  observe({
-    tryCatch({
-      init_fpsim()
-      showNotification("FPsim loaded successfully!", type = "message", duration = 3)
-    }, error = function(e) {
-      showNotification(
-        paste("Error loading FPsim:", e$message),
-        type = "error",
-        duration = NULL
-      )
-    })
-  })
+  # FPsim initialization is handled in global.R onStart() hook
   
   # Parameter summary output
   output$param_summary <- renderUI({

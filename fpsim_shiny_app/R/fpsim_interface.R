@@ -7,9 +7,12 @@
 #' @return List with simulation results
 run_fpsim_simulation <- function(pars) {
   
-  # Validate FPsim is loaded
+  # Validate FPsim is loaded, with lazy initialization
   if (!exists("fp") || is.null(fp)) {
-    stop("FPsim not loaded. Please check Python environment.")
+    message("FPsim not loaded, attempting lazy initialization...")
+    if (!init_fpsim()) {
+      stop("FPsim not loaded. Please check Python environment.")
+    }
   }
   
   # Validate parameters
@@ -51,7 +54,10 @@ run_fpsim_simulation <- function(pars) {
 get_available_methods <- function() {
   
   if (!exists("fp") || is.null(fp)) {
-    stop("FPsim not loaded")
+    message("FPsim not loaded, attempting lazy initialization...")
+    if (!init_fpsim()) {
+      stop("FPsim not loaded. Please check Python environment.")
+    }
   }
   
   methods <- fp$make_methods()
@@ -103,7 +109,10 @@ get_available_methods <- function() {
 create_intervention <- function(type = "update_methods", year, params = list()) {
   
   if (!exists("fp") || is.null(fp)) {
-    stop("FPsim not loaded")
+    message("FPsim not loaded, attempting lazy initialization...")
+    if (!init_fpsim()) {
+      stop("FPsim not loaded. Please check Python environment.")
+    }
   }
   
   if (type == "update_methods") {
@@ -136,7 +145,10 @@ create_intervention <- function(type = "update_methods", year, params = list()) 
 run_sim_with_interventions <- function(pars, interventions = list()) {
   
   if (!exists("fp") || is.null(fp)) {
-    stop("FPsim not loaded")
+    message("FPsim not loaded, attempting lazy initialization...")
+    if (!init_fpsim()) {
+      stop("FPsim not loaded. Please check Python environment.")
+    }
   }
   
   # Convert parameters
