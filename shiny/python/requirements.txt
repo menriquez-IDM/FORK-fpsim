@@ -1,0 +1,18 @@
+# FPsim Family Planning Shiny Web App - Python Dependencies
+# Core dependencies
+starsim>=3.0.0
+sciris>=3.1.0
+pandas>=2.0.0
+scipy
+numpy>=1.20.0
+fpsim>=3.0.0
+
+# Visualization
+plotly>=5.0.0
+matplotlib>=3.5.0
+seaborn
+
+# Additional scientific computing
+openpyxl
+xlsxwriter
+
