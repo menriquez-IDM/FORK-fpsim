@@ -163,8 +163,20 @@ server <- function(input, output, session) {
       impl_efficacy = input$impl_efficacy,
       use_education = input$use_education,
       use_empowerment = input$use_empowerment,
-      rand_seed = input$rand_seed
+      rand_seed = input$rand_seed,
+      enable_intervention = input$enable_intervention
     )
+    
+    # Add intervention parameters if enabled
+    if (input$enable_intervention) {
+      params$new_method_name <- input$new_method_name
+      params$new_method_label <- input$new_method_label
+      params$new_method_efficacy <- input$new_method_efficacy
+      params$new_method_duration <- input$new_method_duration
+      params$intervention_year <- input$intervention_year
+      params$copy_from_method <- input$copy_from_method
+      params$initial_share <- input$initial_share
+    }
     
     # Run simulation with progress updates
     tryCatch({
@@ -215,6 +227,14 @@ server <- function(input, output, session) {
     updateCheckboxInput(session, "use_education", value = FALSE)
     updateCheckboxInput(session, "use_empowerment", value = FALSE)
     updateSliderInput(session, "rand_seed", value = 1)
+    updateCheckboxInput(session, "enable_intervention", value = FALSE)
+    updateTextInput(session, "new_method_name", value = "my_new_method")
+    updateTextInput(session, "new_method_label", value = "MY-NEW-METHOD")
+    updateSliderInput(session, "new_method_efficacy", value = 0.995)
+    updateSliderInput(session, "new_method_duration", value = 12)
+    updateSliderInput(session, "intervention_year", value = 2010)
+    updateSelectInput(session, "copy_from_method", selected = "inj")
+    updateSliderInput(session, "initial_share", value = 0.40)
     
     simulation_results$data <- NULL
     simulation_results$status <- "Parameters reset"
@@ -299,12 +319,23 @@ server <- function(input, output, session) {
   output$cpr_plot <- renderPlotly({
     if (!is.null(simulation_results$data)) {
       data <- simulation_results$data
+      
+      # Ensure numeric vectors
+      cpr_values <- as.numeric(data$cpr) * 100
+      mcpr_values <- as.numeric(data$mcpr) * 100
+      
+      # Remove any NA values
+      valid_idx <- !is.na(cpr_values) & !is.na(mcpr_values)
+      years_valid <- data$years[valid_idx]
+      cpr_valid <- cpr_values[valid_idx]
+      mcpr_valid <- mcpr_values[valid_idx]
+      
       plot_ly() %>%
-        add_trace(x = data$years, y = data$cpr * 100, type = 'scatter', mode = 'lines',
+        add_trace(x = years_valid, y = cpr_valid, type = 'scatter', mode = 'lines',
                   line = list(color = 'green', width = 3),
                   name = 'Total CPR',
                   hovertemplate = 'Year: %{x}<br>CPR: %{y:.1f}%<extra></extra>') %>%
-        add_trace(x = data$years, y = data$mcpr * 100, type = 'scatter', mode = 'lines',
+        add_trace(x = years_valid, y = mcpr_valid, type = 'scatter', mode = 'lines',
                   line = list(color = 'darkgreen', width = 3, dash = 'dash'),
                   name = 'Modern CPR',
                   hovertemplate = 'Year: %{x}<br>mCPR: %{y:.1f}%<extra></extra>') %>%
@@ -417,7 +448,16 @@ server <- function(input, output, session) {
   output$unmet_need_plot <- renderPlotly({
     if (!is.null(simulation_results$data)) {
       data <- simulation_results$data
-      plot_ly(x = data$years, y = data$unmet_need * 100, type = 'scatter', mode = 'lines',
+      
+      # Ensure numeric vectors
+      unmet_values <- as.numeric(data$unmet_need) * 100
+      
+      # Remove any NA values
+      valid_idx <- !is.na(unmet_values)
+      years_valid <- data$years[valid_idx]
+      unmet_valid <- unmet_values[valid_idx]
+      
+      plot_ly(x = years_valid, y = unmet_valid, type = 'scatter', mode = 'lines',
               line = list(color = 'darkred', width = 3),
               hovertemplate = 'Year: %{x}<br>Unmet Need: %{y:.1f}%<extra></extra>') %>%
         layout(title = 'Unmet Need for Family Planning',
@@ -508,11 +548,17 @@ server <- function(input, output, session) {
       data <- simulation_results$data$population_pyramid
       age_labels <- paste0(data$age_bins, "-", data$age_bins + 4)
       
+      # Ensure numeric and handle NA values
+      male_values <- as.numeric(data$male)
+      female_values <- as.numeric(data$female)
+      male_values[is.na(male_values)] <- 0
+      female_values[is.na(female_values)] <- 0
+      
       plot_ly() %>%
-        add_trace(x = -data$male, y = age_labels, type = 'bar', orientation = 'h',
+        add_trace(x = -male_values, y = age_labels, type = 'bar', orientation = 'h',
                   name = 'Male', marker = list(color = 'steelblue'),
                   hovertemplate = 'Male: %{x}<br>Age: %{y}<extra></extra>') %>%
-        add_trace(x = data$female, y = age_labels, type = 'bar', orientation = 'h',
+        add_trace(x = female_values, y = age_labels, type = 'bar', orientation = 'h',
                   name = 'Female', marker = list(color = 'pink'),
                   hovertemplate = 'Female: %{x}<br>Age: %{y}<extra></extra>') %>%
         layout(title = 'Population Pyramid',
@@ -630,6 +676,86 @@ server <- function(input, output, session) {
                        x = 0.5, y = 0.5, showarrow = FALSE) %>%
         layout(xaxis = list(showticklabels = FALSE, showgrid = FALSE),
                yaxis = list(showticklabels = FALSE, showgrid = FALSE))
+    }
+  })
+  
+  # ===== INTERVENTION ANALYSIS TAB =====
+  
+  # Dynamic UI for intervention plot
+  output$intervention_plot_ui <- renderUI({
+    if (!is.null(simulation_results$data) && 
+        !is.null(simulation_results$data$has_intervention) && 
+        simulation_results$data$has_intervention) {
+      
+      # Generate plot based on selected type
+      plot_type <- input$intervention_plot_type
+      
+      tryCatch({
+        # Call Python to generate plot
+        baseline_sim <- simulation_results$data$baseline_sim
+        intervention_sim <- simulation_results$data$intervention_sim
+        
+        # Get parameters
+        params <- list(
+          start = input$start_year,
+          end = input$end_year,
+          location = input$location,
+          intervention_year = input$intervention_year,
+          new_method_name = input$new_method_name,
+          new_method_label = input$new_method_label
+        )
+        
+        # Generate plot via Python
+        img_base64 <- py$generate_intervention_plot_data(
+          baseline_sim, intervention_sim, plot_type, params
+        )
+        
+        # Return HTML img tag
+        tags$img(src = paste0("data:image/png;base64,", img_base64), 
+                style = "width: 100%; height: auto;")
+        
+      }, error = function(e) {
+        p(paste("Error generating plot:", e$message), style = "color: red;")
+      })
+      
+    } else {
+      p("No intervention data available. Run simulation with intervention enabled.",
+        style = "font-style: italic; color: gray;")
+    }
+  })
+  
+  # Intervention statistics output
+  output$intervention_stats <- renderText({
+    if (!is.null(simulation_results$data) && 
+        !is.null(simulation_results$data$intervention_stats)) {
+      
+      stats <- simulation_results$data$intervention_stats
+      
+      paste0(
+        "=== INTERVENTION IMPACT SUMMARY ===\n\n",
+        "Final Prevalence Rates (", stats$end_year, "):\n",
+        sprintf("  Baseline mCPR:       %6.2f%%\n", stats$baseline_mcpr * 100),
+        sprintf("  Intervention mCPR:   %6.2f%%\n", stats$interv_mcpr * 100),
+        sprintf("  Change:             %+6.2f%%\n\n", stats$mcpr_change * 100),
+        
+        sprintf("  Baseline CPR:        %6.2f%%\n", stats$baseline_cpr * 100),
+        sprintf("  Intervention CPR:    %6.2f%%\n", stats$interv_cpr * 100),
+        sprintf("  Change:             %+6.2f%%\n\n", stats$cpr_change * 100),
+        
+        "Births After Intervention (", stats$intervention_year, "-", stats$end_year, "):\n",
+        sprintf("  Baseline births:        %8d\n", stats$baseline_births),
+        sprintf("  Intervention births:    %8d\n", stats$interv_births),
+        sprintf("  Births averted:         %8d\n", stats$births_averted),
+        sprintf("  Percent reduction:      %7.1f%%\n\n", stats$percent_reduction),
+        
+        "New Method Adoption:\n",
+        sprintf("  Method: %s\n", stats$new_method_label),
+        sprintf("  Adoption rate:          %7.2f%%\n", stats$new_method_adoption),
+        sprintf("  Number of users:        %8d\n", stats$new_method_users)
+      )
+      
+    } else {
+      "No intervention statistics available.\nRun simulation with intervention enabled to see impact metrics."
     }
   })
 }

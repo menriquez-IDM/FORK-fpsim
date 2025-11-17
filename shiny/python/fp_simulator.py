@@ -13,6 +13,11 @@ from plotly.subplots import make_subplots
 import sciris as sc
 import starsim as ss
 import fpsim as fp
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend for server
+import matplotlib.pyplot as plt
+import base64
+from io import BytesIO
 
 def run_fp_simulation(params):
     """
@@ -25,6 +30,22 @@ def run_fp_simulation(params):
         dict: Simulation results and plots
     """
     
+    try:
+        # Check if intervention is enabled
+        enable_intervention = params.get('enable_intervention', False)
+        
+        if enable_intervention:
+            # Run baseline and intervention simulations
+            return run_intervention_comparison(params)
+        else:
+            # Run single simulation
+            return run_single_simulation(params)
+        
+    except Exception as e:
+        raise Exception(f"Simulation failed: {str(e)}")
+
+def run_single_simulation(params):
+    """Run a single FPsim simulation without intervention"""
     try:
         # Extract parameters
         n_agents = params.get('n_agents', 1000)
@@ -385,4 +406,64 @@ def plot_asfr(results):
         template='plotly_white'
     )
     return fig
+
+def run_intervention_comparison(params):
+    """Run baseline and intervention simulations for comparison"""
+    import sys
+    import os
+    import inspect
+    
+    # Get current directory - works with reticulate
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        # __file__ not available in reticulate, use inspect
+        current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    
+    from fp_simulator_intervention import (
+        run_baseline_simulation,
+        run_intervention_simulation,
+        generate_intervention_plot,
+        calculate_intervention_statistics
+    )
+    
+    # Run both simulations
+    baseline_sim = run_baseline_simulation(params)
+    intervention_sim = run_intervention_simulation(params)
+    
+    # Extract results from intervention simulation
+    results = extract_simulation_results(intervention_sim, params)
+    
+    # Add intervention-specific data
+    results['has_intervention'] = True
+    results['baseline_sim'] = baseline_sim
+    results['intervention_sim'] = intervention_sim
+    
+    # Calculate statistics
+    stats = calculate_intervention_statistics(baseline_sim, intervention_sim, params)
+    results['intervention_stats'] = stats
+    
+    return results
+
+def generate_intervention_plot_data(baseline_sim, intervention_sim, plot_type, params):
+    """Generate intervention plot as base64 image"""
+    import sys
+    import os
+    import inspect
+    
+    # Get current directory - works with reticulate
+    try:
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+    except NameError:
+        # __file__ not available in reticulate, use inspect
+        current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    
+    if current_dir not in sys.path:
+        sys.path.insert(0, current_dir)
+    
+    from fp_simulator_intervention import generate_intervention_plot
+    return generate_intervention_plot(baseline_sim, intervention_sim, plot_type, params)
 

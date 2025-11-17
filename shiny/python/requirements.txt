@@ -10,9 +10,12 @@ fpsim>=3.0.0
 # Visualization
 plotly>=5.0.0
 matplotlib>=3.5.0
-seaborn
+seaborn>=0.11.0
 
 # Additional scientific computing
 openpyxl
 xlsxwriter
+
+# For base64 encoding (usually included in Python standard library)
+# pillow  # Optional, for advanced image processing
 

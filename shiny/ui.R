@@ -174,6 +174,29 @@ ui <- fluidPage(
                     value = 0.994, min = 0.5, max = 1.0, step = 0.01)
       ),
       
+      # Method Intervention Parameters
+      wellPanel(
+        h5("Method Intervention (Optional)"),
+        checkboxInput("enable_intervention", "Enable New Method Intervention", value = FALSE),
+        conditionalPanel(
+          condition = "input.enable_intervention == true",
+          textInput("new_method_name", "Method Name (lowercase)", value = "my_new_method"),
+          textInput("new_method_label", "Method Label (display)", value = "MY-NEW-METHOD"),
+          sliderInput("new_method_efficacy", "Method Efficacy", 
+                      value = 0.995, min = 0.5, max = 1.0, step = 0.005),
+          sliderInput("new_method_duration", "Duration (months)", 
+                      value = 12, min = 1, max = 60, step = 1),
+          sliderInput("intervention_year", "Intervention Year", 
+                      value = 2010, min = 1985, max = 2025, step = 1),
+          selectInput("copy_from_method", "Copy Matrix From", 
+                      choices = c("Injectables" = "inj", "Pills" = "pill", "IUD" = "iud", 
+                                 "Implants" = "impl", "Condoms" = "cond"),
+                      selected = "inj"),
+          sliderInput("initial_share", "Initial Share (staying probability)", 
+                      value = 0.40, min = 0.0, max = 1.0, step = 0.05)
+        )
+      ),
+      
       # Advanced Parameters (collapsible)
       wellPanel(
         h5("Advanced Parameters"),
@@ -342,6 +365,62 @@ ui <- fluidPage(
                 h4("Cumulative Births Over Time"),
                 plotlyOutput("cumulative_births_plot", height = "300px")
               )
+            )
+          )
+        ),
+        
+        # ===== INTERVENTION ANALYSIS TAB =====
+        tabPanel(
+          "Intervention Analysis", 
+          icon = icon("flask"),
+          
+          br(),
+          
+          conditionalPanel(
+            condition = "input.enable_intervention == false",
+            wellPanel(
+              h4("No Intervention Enabled"),
+              p("To use this feature, enable 'New Method Intervention' in the sidebar parameters."),
+              p("This will allow you to:"),
+              tags$ul(
+                tags$li("Add a new contraceptive method to the simulation"),
+                tags$li("Compare baseline vs intervention scenarios"),
+                tags$li("View detailed intervention impact visualizations")
+              )
+            )
+          ),
+          
+          conditionalPanel(
+            condition = "input.enable_intervention == true",
+            
+            # Plot type selector
+            wellPanel(
+              h4("Select Visualization"),
+              selectInput("intervention_plot_type", "Choose Plot Type:",
+                         choices = c(
+                           "Summary Figure (Comprehensive)" = "summary",
+                           "Injectable Methods Comparison" = "injectables",
+                           "Method Mix Evolution" = "method_mix",
+                           "New Method Adoption" = "adoption",
+                           "Method Comparison Bar Chart" = "method_bar",
+                           "CPR Comparison" = "cpr",
+                           "Births Comparison" = "births"
+                         ),
+                         selected = "summary"),
+              p("Note: Plots will appear after running the simulation with intervention enabled.", 
+                style = "font-size: 11px; color: gray; font-style: italic;")
+            ),
+            
+            # Main intervention plot
+            wellPanel(
+              h4("Intervention Impact Visualization"),
+              uiOutput("intervention_plot_ui")
+            ),
+            
+            # Intervention statistics
+            wellPanel(
+              h4("Intervention Statistics"),
+              verbatimTextOutput("intervention_stats")
             )
           )
         ),
