@@ -1447,30 +1447,38 @@ def plot_method_comparison_bar(baseline_sim, intervention_sim, start_year, end_y
     """Bar chart comparing final method usage."""
     fig, ax = plt.subplots(figsize=(12, 7))
     
-    # Get final method usage for both sims
-    baseline_methods = {}
-    intervention_methods = {}
+    # Get final method usage for both sims using method_mix
+    baseline_methods_dict = {}
+    intervention_methods_dict = {}
     
-    # Baseline
-    ppl = baseline_sim.people
+    n_agents = baseline_sim.pars.n_agents
+    
+    # Baseline - use method_mix
+    baseline_fp = baseline_sim.connectors['fp']
+    baseline_mix_final = baseline_fp.method_mix[:, -1]
+    baseline_cpr_final = baseline_sim.results.contraception.cpr[-1]
     methods = baseline_sim.connectors.contraception.methods
-    for name, method in methods.items():
-        if name != 'none':
-            count = np.sum(ppl.fp.method == method.idx)
-            baseline_methods[method.label] = count
     
-    # Intervention
-    ppl = intervention_sim.people
-    methods = intervention_sim.connectors.contraception.methods
     for name, method in methods.items():
         if name != 'none':
-            count = np.sum(ppl.fp.method == method.idx)
-            intervention_methods[method.label] = count
+            estimated_users = baseline_mix_final[method.idx] * n_agents * baseline_cpr_final
+            baseline_methods_dict[method.label] = estimated_users
+    
+    # Intervention - use method_mix
+    interv_fp = intervention_sim.connectors['fp']
+    interv_mix_final = interv_fp.method_mix[:, -1]
+    interv_cpr_final = intervention_sim.results.contraception.cpr[-1]
+    methods = intervention_sim.connectors.contraception.methods
+    
+    for name, method in methods.items():
+        if name != 'none':
+            estimated_users = interv_mix_final[method.idx] * n_agents * interv_cpr_final
+            intervention_methods_dict[method.label] = estimated_users
     
     # Prepare data for plotting
-    all_methods = sorted(set(list(baseline_methods.keys()) + list(intervention_methods.keys())))
-    baseline_counts = [baseline_methods.get(m, 0) for m in all_methods]
-    intervention_counts = [intervention_methods.get(m, 0) for m in all_methods]
+    all_methods = sorted(set(list(baseline_methods_dict.keys()) + list(intervention_methods_dict.keys())))
+    baseline_counts = [baseline_methods_dict.get(m, 0) for m in all_methods]
+    intervention_counts = [intervention_methods_dict.get(m, 0) for m in all_methods]
     
     # Create bar chart
     x = np.arange(len(all_methods))
@@ -1622,7 +1630,7 @@ def plot_births_comparison(baseline_sim, intervention_sim, start_year, end_year,
 # ------------------------------------------------------------
 def create_summary_figure(baseline_sim, intervention_sim, start_year, end_year, intervention_year, location, save_path=None):
     """Create a comprehensive summary figure with multiple subplots."""
-    fig = plt.figure(figsize=(16, 12))
+    fig = plt.figure(figsize=(16, 20))
     gs = fig.add_gridspec(4, 2, hspace=0.35, wspace=0.3)
     
     # Get years as numeric array
@@ -1775,13 +1783,19 @@ def create_summary_figure(baseline_sim, intervention_sim, start_year, end_year, 
     # 5. Top Methods Ranking
     ax5 = fig.add_subplot(gs[2, 1])
     
-    # Get top 6 methods by intervention usage
-    ppl = intervention_sim.people
+    # Get top 6 methods by intervention usage using method_mix
+    # method_mix shows the proportion of contraceptive users using each method
+    interv_fp = intervention_sim.connectors['fp']
+    method_mix_final = interv_fp.method_mix[:, -1]  # Final year proportions
+    n_agents = intervention_sim.pars.n_agents
+    cpr_final = intervention_sim.results.contraception.cpr[-1]
+    
     method_counts = []
     for name, method in interv_methods.items():
         if name != 'none':
-            count = np.sum(ppl.fp.method == method.idx)
-            method_counts.append((method.label, count, name))
+            # method_mix is proportion of users, multiply by n_agents and CPR to get estimated users
+            estimated_users = method_mix_final[method.idx] * n_agents * cpr_final
+            method_counts.append((method.label, estimated_users, name))
     
     method_counts.sort(key=lambda x: x[1], reverse=True)
     top_methods = method_counts[:6]
@@ -1806,26 +1820,35 @@ def create_summary_figure(baseline_sim, intervention_sim, start_year, end_year, 
     
     # Add value labels
     for i, count in enumerate(top_counts):
-        ax5.text(count + 20, i, f'{int(count)}', va='center', fontsize=9, fontweight='bold')
+        ax5.text(count + max(top_counts)*0.02, i, f'{int(count)}', va='center', fontsize=9, fontweight='bold')
     
     # 6. All Methods Comparison
     ax6 = fig.add_subplot(gs[3, :])
     
-    # Get all methods and their final usage
+    # Get all methods and their final usage using method_mix
     baseline_method_data = {}
     intervention_method_data = {}
     
-    ppl = baseline_sim.people
+    # Baseline sim
+    baseline_fp = baseline_sim.connectors['fp']
+    baseline_mix_final = baseline_fp.method_mix[:, -1]
+    baseline_cpr_final = baseline_sim.results.contraception.cpr[-1]
+    n_agents = baseline_sim.pars.n_agents
+    
     for name, method in baseline_methods.items():
         if name != 'none':
-            count = np.sum(ppl.fp.method == method.idx)
-            baseline_method_data[method.label] = count
+            estimated_users = baseline_mix_final[method.idx] * n_agents * baseline_cpr_final
+            baseline_method_data[method.label] = estimated_users
     
-    ppl = intervention_sim.people
+    # Intervention sim
+    interv_fp = intervention_sim.connectors['fp']
+    interv_mix_final = interv_fp.method_mix[:, -1]
+    interv_cpr_final = intervention_sim.results.contraception.cpr[-1]
+    
     for name, method in interv_methods.items():
         if name != 'none':
-            count = np.sum(ppl.fp.method == method.idx)
-            intervention_method_data[method.label] = count
+            estimated_users = interv_mix_final[method.idx] * n_agents * interv_cpr_final
+            intervention_method_data[method.label] = estimated_users
     
     all_methods = sorted(set(list(baseline_method_data.keys()) + list(intervention_method_data.keys())))
     baseline_counts = [baseline_method_data.get(m, 0) for m in all_methods]
@@ -1861,6 +1884,340 @@ def create_summary_figure(baseline_sim, intervention_sim, start_year, end_year, 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
         print(f"Saved summary figure to {save_path}")
+    return fig
+
+
+# ------------------------------------------------------------
+# INDIVIDUAL PLOT FUNCTIONS (from summary figure)
+# ------------------------------------------------------------
+
+def plot_new_method_adoption_rate(baseline_sim, intervention_sim, start_year, end_year, intervention_year, location, save_path=None):
+    """Plot 1: New Method Adoption Rate Over Time"""
+    fig, ax = plt.subplots(figsize=(14, 5))
+    
+    years = np.linspace(start_year, end_year, len(intervention_sim.results.timevec))
+    interv_methods = intervention_sim.connectors.contraception.methods
+    interv_fp = intervention_sim.connectors['fp']
+    interv_mix = interv_fp.method_mix
+    
+    # Detect new methods
+    new_method_labels = _get_new_method_labels_from_sims(baseline_sim, intervention_sim)
+    new_method_names = [name for name, method in interv_methods.items() 
+                        if method.label in new_method_labels]
+    new_methods_str = ', '.join(new_method_labels) if new_method_labels else 'New Methods'
+    
+    if new_method_names:
+        colors_list = [COLORS['new_method'], '#C73E1D', '#6A4C93', '#1982C4']
+        for idx, name in enumerate(new_method_names):
+            method_idx = interv_methods[name].idx
+            method_label = interv_methods[name].label
+            method_proportion = interv_mix[method_idx, :] * 100
+            color = colors_list[idx % len(colors_list)]
+            
+            ax.fill_between(years, 0, method_proportion, color=color, alpha=0.4)
+            ax.plot(years, method_proportion, color=color, linewidth=1.5, label=f'{method_label} Users')
+            
+            ax.axvline(intervention_year, color='red', linestyle='--', linewidth=1, alpha=0.7, label='Introduction')
+        
+        # Add program info
+        info_text = f'New Method(s): {new_methods_str}'
+        ax.text(0.02, 0.95, info_text, transform=ax.transAxes, fontsize=10,
+                verticalalignment='top',
+                bbox=dict(boxstyle='round,pad=0.6', facecolor='lightgreen', alpha=0.85, edgecolor='darkgreen'))
+    
+    ax.set_xlabel('Year', fontsize=11)
+    ax.set_ylabel('% of Users', fontsize=11)
+    ax.set_title(f'{new_methods_str} Adoption Rate', fontweight='bold', fontsize=13)
+    ax.legend(fontsize=10)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    return fig
+
+
+def plot_injectable_new_method_trends(baseline_sim, intervention_sim, start_year, end_year, intervention_year, location, save_path=None):
+    """Plot 2: Injectable & New Methods Individual Trends"""
+    fig, ax = plt.subplots(figsize=(14, 5))
+    
+    years = np.linspace(start_year, end_year, len(baseline_sim.results.timevec))
+    
+    baseline_fp = baseline_sim.connectors['fp']
+    intervention_fp = intervention_sim.connectors['fp']
+    baseline_mix = baseline_fp.method_mix
+    interv_mix = intervention_fp.method_mix
+    baseline_methods = baseline_sim.connectors.contraception.methods
+    interv_methods = intervention_sim.connectors.contraception.methods
+    
+    # Detect new methods
+    new_method_labels = _get_new_method_labels_from_sims(baseline_sim, intervention_sim)
+    new_method_names = [name for name, method in interv_methods.items() 
+                        if method.label in new_method_labels]
+    
+    baseline_inj = baseline_mix[baseline_methods['inj'].idx, :] * 100
+    interv_inj = interv_mix[interv_methods['inj'].idx, :] * 100
+    
+    ax.plot(years, baseline_inj, label='Regular Inj (Baseline)', 
+            color=COLORS['baseline'], linewidth=1.5, linestyle='--', alpha=0.7)
+    ax.plot(years, interv_inj, label='Regular Inj (Program)', 
+            color='green', linewidth=1.0)
+    
+    # Plot all new methods
+    colors_list = [COLORS['new_method'], '#C73E1D', '#6A4C93', '#1982C4']
+    for idx, name in enumerate(new_method_names):
+        method_idx = interv_methods[name].idx
+        method_label = interv_methods[name].label
+        color = colors_list[idx % len(colors_list)]
+        ax.plot(years, interv_mix[method_idx, :] * 100, label=f'{method_label} (New)', 
+                color=color, linewidth=1.5)
+    
+    ax.axvline(intervention_year, color='red', linestyle='--', alpha=0.5)
+    ax.set_xlabel('Year', fontsize=11)
+    ax.set_ylabel('% of Users', fontsize=11)
+    ax.set_title('Injectable & New Methods: Individual Trends', fontweight='bold', fontsize=12)
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    return fig
+
+
+def plot_total_injectable_share(baseline_sim, intervention_sim, start_year, end_year, intervention_year, location, save_path=None):
+    """Plot 3: Total Injectable Share (Combined)"""
+    fig, ax = plt.subplots(figsize=(14, 5))
+    
+    years = np.linspace(start_year, end_year, len(baseline_sim.results.timevec))
+    
+    baseline_fp = baseline_sim.connectors['fp']
+    intervention_fp = intervention_sim.connectors['fp']
+    baseline_mix = baseline_fp.method_mix
+    interv_mix = intervention_fp.method_mix
+    baseline_methods = baseline_sim.connectors.contraception.methods
+    interv_methods = intervention_sim.connectors.contraception.methods
+    
+    # Detect new methods
+    new_method_labels = _get_new_method_labels_from_sims(baseline_sim, intervention_sim)
+    new_method_names = [name for name, method in interv_methods.items() 
+                        if method.label in new_method_labels]
+    
+    baseline_inj = baseline_mix[baseline_methods['inj'].idx, :] * 100
+    interv_inj = interv_mix[interv_methods['inj'].idx, :] * 100
+    
+    baseline_inj_total = baseline_inj
+    interv_inj_total = interv_inj.copy()
+    for name in new_method_names:
+        interv_inj_total += interv_mix[interv_methods[name].idx, :] * 100
+    
+    ax.fill_between(years, baseline_inj_total, interv_inj_total, 
+                    where=(interv_inj_total >= baseline_inj_total),
+                    color='green', alpha=0.3, label='Increase')
+    ax.plot(years, baseline_inj_total, label='Baseline Total', 
+            color=COLORS['baseline'], linewidth=1.5)
+    ax.plot(years, interv_inj_total, label='Program Total', 
+            color=COLORS['intervention'], linewidth=1.5)
+    ax.axvline(intervention_year, color='red', linestyle='--', alpha=0.5)
+    
+    final_increase = interv_inj_total[-1] - baseline_inj_total[-1]
+    ax.text(0.5, 0.95, f'+{final_increase:.1f} pp increase',
+            transform=ax.transAxes, fontsize=11, fontweight='bold',
+            ha='center', va='top',
+            bbox=dict(boxstyle='round,pad=0.5', facecolor='yellow', alpha=0.8))
+    
+    ax.set_xlabel('Year', fontsize=11)
+    ax.set_ylabel('% of Users', fontsize=11)
+    ax.set_title('Total Injectable Share (Combined)', fontweight='bold', fontsize=12)
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    plt.tight_layout()
+    
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    return fig
+
+
+def plot_method_substitution_effects(baseline_sim, intervention_sim, start_year, end_year, intervention_year, location, save_path=None):
+    """Plot 4: Method Substitution Effects"""
+    fig, ax = plt.subplots(figsize=(14, 5))
+    
+    baseline_fp = baseline_sim.connectors['fp']
+    intervention_fp = intervention_sim.connectors['fp']
+    baseline_mix = baseline_fp.method_mix
+    interv_mix = intervention_fp.method_mix
+    baseline_methods = baseline_sim.connectors.contraception.methods
+    interv_methods = intervention_sim.connectors.contraception.methods
+    
+    # Detect new methods
+    new_method_labels = _get_new_method_labels_from_sims(baseline_sim, intervention_sim)
+    
+    # Calculate changes in method usage
+    method_changes = {}
+    all_method_names = set()
+    
+    for name in baseline_methods.keys():
+        all_method_names.add(baseline_methods[name].label)
+    for name in interv_methods.keys():
+        all_method_names.add(interv_methods[name].label)
+    
+    for label in all_method_names:
+        baseline_pct = 0
+        interv_pct = 0
+        
+        for name, method in baseline_methods.items():
+            if method.label == label and name != 'none':
+                baseline_pct = baseline_mix[method.idx, -1] * 100
+                
+        for name, method in interv_methods.items():
+            if method.label == label and name != 'none':
+                interv_pct = interv_mix[method.idx, -1] * 100
+        
+        change = interv_pct - baseline_pct
+        if abs(change) > 0.01:  # Only show meaningful changes
+            method_changes[label] = change
+    
+    # Sort by change
+    sorted_methods = sorted(method_changes.items(), key=lambda x: x[1], reverse=True)
+    labels = [m[0] for m in sorted_methods]
+    changes = [m[1] for m in sorted_methods]
+    
+    colors_bars = [COLORS['new_method'] if c > 0 else 'lightcoral' for c in changes]
+    bars = ax.barh(labels, changes, color=colors_bars, alpha=0.8, edgecolor='black')
+    ax.axvline(0, color='black', linewidth=1)
+    ax.set_xlabel('Change in % of Users', fontsize=11)
+    ax.set_title('Method Substitution Effects', fontweight='bold', fontsize=12)
+    ax.grid(True, alpha=0.3, axis='x')
+    
+    # Add value labels
+    for i, (label, val) in enumerate(zip(labels, changes)):
+        ax.text(val + (0.3 if val > 0 else -0.3), i, f'{val:+.1f}', 
+                va='center', ha='left' if val > 0 else 'right', fontsize=9, fontweight='bold')
+    
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    return fig
+
+
+def plot_top_methods_by_usage(baseline_sim, intervention_sim, start_year, end_year, intervention_year, location, save_path=None):
+    """Plot 5: Top 6 Methods by Usage"""
+    fig, ax = plt.subplots(figsize=(14, 4))
+    
+    interv_fp = intervention_sim.connectors['fp']
+    interv_methods = intervention_sim.connectors.contraception.methods
+    method_mix_final = interv_fp.method_mix[:, -1]
+    n_agents = intervention_sim.pars.n_agents
+    cpr_final = intervention_sim.results.contraception.cpr[-1]
+    
+    # Detect new methods
+    new_method_labels = _get_new_method_labels_from_sims(baseline_sim, intervention_sim)
+    new_method_names = [name for name, method in interv_methods.items() 
+                        if method.label in new_method_labels]
+    
+    method_counts = []
+    for name, method in interv_methods.items():
+        if name != 'none':
+            estimated_users = method_mix_final[method.idx] * n_agents * cpr_final
+            method_counts.append((method.label, estimated_users, name))
+    
+    method_counts.sort(key=lambda x: x[1], reverse=True)
+    top_methods = method_counts[:6]
+    
+    top_labels = [m[0] for m in top_methods]
+    top_counts = [m[1] for m in top_methods]
+    top_names = [m[2] for m in top_methods]
+    
+    # Highlight new methods in different color
+    colors_top = [COLORS['new_method'] if n in new_method_names else COLORS['intervention'] for n in top_names]
+    bars = ax.barh(top_labels, top_counts, color=colors_top, alpha=0.8, edgecolor='black')
+    
+    # Highlight all new methods with thicker border
+    for new_name in new_method_names:
+        if new_name in top_names:
+            new_idx = top_names.index(new_name)
+            bars[new_idx].set_linewidth(2)
+    
+    ax.set_xlabel('Number of Users', fontsize=11)
+    ax.set_title(f'Top 6 Methods by Usage ({end_year})', fontweight='bold', fontsize=12)
+    ax.grid(True, alpha=0.3, axis='x')
+    
+    # Add value labels
+    for i, count in enumerate(top_counts):
+        ax.text(count + max(top_counts)*0.02, i, f'{int(count)}', va='center', fontsize=9, fontweight='bold')
+    
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    return fig
+
+
+def plot_all_methods_final_comparison(baseline_sim, intervention_sim, start_year, end_year, intervention_year, location, save_path=None):
+    """Plot 6: All Methods Final Usage Comparison"""
+    fig, ax = plt.subplots(figsize=(14, 5))
+    
+    baseline_fp = baseline_sim.connectors['fp']
+    intervention_fp = intervention_sim.connectors['fp']
+    baseline_methods = baseline_sim.connectors.contraception.methods
+    interv_methods = intervention_sim.connectors.contraception.methods
+    
+    # Detect new methods
+    new_method_labels = _get_new_method_labels_from_sims(baseline_sim, intervention_sim)
+    new_methods_str = ', '.join(new_method_labels) if new_method_labels else 'New Methods'
+    
+    # Get all methods and their final usage using method_mix
+    baseline_method_data = {}
+    intervention_method_data = {}
+    
+    # Baseline sim
+    baseline_mix_final = baseline_fp.method_mix[:, -1]
+    baseline_cpr_final = baseline_sim.results.contraception.cpr[-1]
+    n_agents = baseline_sim.pars.n_agents
+    
+    for name, method in baseline_methods.items():
+        if name != 'none':
+            estimated_users = baseline_mix_final[method.idx] * n_agents * baseline_cpr_final
+            baseline_method_data[method.label] = estimated_users
+    
+    # Intervention sim
+    interv_mix_final = intervention_fp.method_mix[:, -1]
+    interv_cpr_final = intervention_sim.results.contraception.cpr[-1]
+    
+    for name, method in interv_methods.items():
+        if name != 'none':
+            estimated_users = interv_mix_final[method.idx] * n_agents * interv_cpr_final
+            intervention_method_data[method.label] = estimated_users
+    
+    all_methods = sorted(set(list(baseline_method_data.keys()) + list(intervention_method_data.keys())))
+    baseline_counts = [baseline_method_data.get(m, 0) for m in all_methods]
+    intervention_counts = [intervention_method_data.get(m, 0) for m in all_methods]
+    
+    x = np.arange(len(all_methods))
+    width = 0.35
+    ax.bar(x - width/2, baseline_counts, width, label='Baseline', 
+           color=COLORS['baseline'], alpha=0.8, edgecolor='black', linewidth=0.5)
+    bars = ax.bar(x + width/2, intervention_counts, width, label=f'With {new_methods_str} Program', 
+                   color=COLORS['intervention'], alpha=0.8, edgecolor='black', linewidth=0.5)
+    
+    # Highlight all new methods
+    for new_label in new_method_labels:
+        if new_label in all_methods:
+            new_idx = all_methods.index(new_label)
+            bars[new_idx].set_color(COLORS['new_method'])
+            bars[new_idx].set_edgecolor('black')
+            bars[new_idx].set_linewidth(2)
+    
+    ax.set_xlabel('Contraceptive Method', fontsize=11)
+    ax.set_ylabel('Number of Users', fontsize=11)
+    ax.set_title(f'All Methods: Final Usage Comparison ({end_year})', fontweight='bold', fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(all_methods, rotation=45, ha='right', fontsize=9)
+    ax.legend(fontsize=10)
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
     return fig
 
 

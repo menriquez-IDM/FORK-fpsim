@@ -103,6 +103,7 @@ Rscript -e "
 required_packages <- c(
   'shiny',
   'shinyjs',
+  'shinybusy',
   'plotly',
   'DT',
   'reticulate',

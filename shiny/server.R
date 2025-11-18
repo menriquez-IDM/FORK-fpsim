@@ -259,9 +259,20 @@ server <- function(input, output, session) {
   
   # Run simulation
   observeEvent(input$run_simulation, {
+    # ===== SHOW LOADING INDICATOR =====
+    # This displays a full-page spinner overlay while the simulation runs
+    # It will automatically cover the active tab (Simulation tab in this case)
+    show_modal_spinner(
+      spin = "fading-circle",
+      color = "#3498db",
+      text = "Running FPsim Simulation...\nThis may take 30-60 seconds."
+    )
+    
     # Validate parameters
     errors <- validate_parameters()
     if (length(errors) > 0) {
+      # Remove spinner if validation fails
+      remove_modal_spinner()
       showNotification(paste("Parameter errors:", paste(errors, collapse = ", ")), 
                      type = "error", duration = 5)
       return()
@@ -319,11 +330,18 @@ server <- function(input, output, session) {
       }
       simulation_results$progress <- 100
       
+      # ===== HIDE LOADING INDICATOR (SUCCESS) =====
+      remove_modal_spinner()
+      
       showNotification("Simulation completed successfully!", type = "message")
       
     }, error = function(e) {
       simulation_results$status <- paste("Simulation failed:", e$message)
       simulation_results$progress <- 0
+      
+      # ===== HIDE LOADING INDICATOR (ERROR) =====
+      remove_modal_spinner()
+      
       showNotification(paste("Simulation failed:", e$message), type = "error")
     })
   })
@@ -749,11 +767,41 @@ server <- function(input, output, session) {
         !is.null(simulation_results$data$has_intervention) && 
         simulation_results$data$has_intervention) {
       
-      # Generate plot based on selected type
-      plot_type <- input$intervention_plot_type
+      # Collect all selected plot types
+      plot_types <- c()
+      
+      # Add summary if selected
+      if (!is.null(input$show_summary) && input$show_summary) {
+        plot_types <- c(plot_types, "summary")
+      }
+      
+      # Add statistics if selected
+      if (!is.null(input$show_statistics) && input$show_statistics) {
+        plot_types <- c(plot_types, "statistics")
+      }
+      
+      # Add individual panels
+      if (!is.null(input$intervention_plot_types)) {
+        plot_types <- c(plot_types, input$intervention_plot_types)
+      }
+      
+      # Add other analyses
+      if (!is.null(input$intervention_plot_types_other)) {
+        plot_types <- c(plot_types, input$intervention_plot_types_other)
+      }
+      
+      # If nothing selected, show a message
+      if (length(plot_types) == 0) {
+        return(div(
+          style = "text-align: center; padding: 40px; color: gray;",
+          icon("info-circle", class = "fa-3x"),
+          h4("No plots selected", style = "margin-top: 20px;"),
+          p("Please select one or more visualizations from the checkboxes on the left.")
+        ))
+      }
       
       tryCatch({
-        # Call Python to generate plot
+        # Call Python to generate plots
         baseline_sim <- simulation_results$data$baseline_sim
         intervention_sim <- simulation_results$data$intervention_sim
         
@@ -767,14 +815,117 @@ server <- function(input, output, session) {
           new_method_label = input$new_method_label
         )
         
-        # Generate plot via Python
-        img_base64 <- py$generate_intervention_plot_data(
-          baseline_sim, intervention_sim, plot_type, params
-        )
+        # Generate all selected plots
+        plot_list <- lapply(plot_types, function(plot_type) {
+          
+          # Handle statistics separately (not a Python plot)
+          if (plot_type == "statistics") {
+            stats <- simulation_results$data$intervention_stats
+            
+            stats_content <- if (!is.null(stats)) {
+              div(
+                style = "font-family: monospace; font-size: 14px; line-height: 1.8; background-color: #f8f9fa; padding: 20px; border-radius: 4px;",
+                div(
+                  style = "margin-bottom: 20px;",
+                  h5(strong("IMPACT SUMMARY"), style = "color: #2c3e50; margin-bottom: 15px;"),
+                  
+                  div(style = "margin-bottom: 15px; padding: 10px; background-color: white; border-left: 3px solid #27ae60; border-radius: 3px;",
+                    strong("mCPR Change:"), br(),
+                    span(style = "font-size: 18px; color: #27ae60;",
+                      sprintf("%+.2f%%", stats$mcpr_change * 100)
+                    ),
+                    span(style = "color: #666; margin-left: 10px;",
+                      sprintf("(%.1f%% → %.1f%%)", stats$baseline_mcpr * 100, stats$interv_mcpr * 100)
+                    )
+                  ),
+                  
+                  div(style = "margin-bottom: 15px; padding: 10px; background-color: white; border-left: 3px solid #3498db; border-radius: 3px;",
+                    strong("CPR Change:"), br(),
+                    span(style = "font-size: 18px; color: #3498db;",
+                      sprintf("%+.2f%%", stats$cpr_change * 100)
+                    ),
+                    span(style = "color: #666; margin-left: 10px;",
+                      sprintf("(%.1f%% → %.1f%%)", stats$baseline_cpr * 100, stats$interv_cpr * 100)
+                    )
+                  ),
+                  
+                  div(style = "margin-bottom: 15px; padding: 10px; background-color: white; border-left: 3px solid #e74c3c; border-radius: 3px;",
+                    strong("Births Averted:"), br(),
+                    span(style = "font-size: 18px; color: #e74c3c;",
+                      format(stats$births_averted, big.mark = ",")
+                    ),
+                    span(style = "color: #666; margin-left: 10px;",
+                      sprintf("(%.1f%% reduction)", stats$percent_reduction)
+                    )
+                  ),
+                  
+                  div(style = "padding: 10px; background-color: white; border-left: 3px solid #f39c12; border-radius: 3px;",
+                    strong("New Method:"), br(),
+                    span(style = "font-size: 16px; color: #2c3e50;",
+                      stats$new_method_label
+                    ), br(),
+                    span(style = "color: #666;",
+                      sprintf("%.1f%% adoption rate · %s users", 
+                              stats$new_method_adoption,
+                              format(stats$new_method_users, big.mark = ","))
+                    )
+                  )
+                )
+              )
+            } else {
+              p("No statistics available", style = "color: gray;")
+            }
+            
+            return(div(
+              style = "width: 100%; margin-bottom: 20px;",
+              div(
+                style = "border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);",
+                h4("Impact Statistics", style = "margin-top: 0; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;"),
+                stats_content
+              )
+            ))
+          }
+          
+          # For all other plot types, generate via Python
+          img_base64 <- py$generate_intervention_plot_data(
+            baseline_sim, intervention_sim, plot_type, params
+          )
+          
+          # Get plot title
+          plot_title <- switch(plot_type,
+            "summary" = "Summary Figure (All 6 Panels)",
+            "adoption_rate" = "1. New Method Adoption Rate",
+            "injectable_trends" = "2. Injectable & New Method Trends",
+            "total_injectable" = "3. Total Injectable Share",
+            "substitution" = "4. Method Substitution Effects",
+            "top_methods" = "5. Top 6 Methods by Usage",
+            "all_methods" = "6. All Methods Final Comparison",
+            "injectables" = "Injectable Methods Comparison",
+            "method_mix" = "Method Mix Evolution",
+            "adoption" = "New Method Adoption (Legacy)",
+            "method_bar" = "Method Comparison Bar Chart",
+            "cpr" = "CPR Comparison",
+            "births" = "Births Comparison",
+            "Plot"
+          )
+          
+          # All plots full width (100%) - single column layout
+          div(
+            style = "width: 100%; margin-bottom: 20px;",
+            div(
+              style = "border: 1px solid #ddd; padding: 15px; border-radius: 5px; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);",
+              h4(plot_title, style = "margin-top: 0; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px;"),
+              tags$img(src = paste0("data:image/png;base64,", img_base64), 
+                      style = "width: 100%; height: auto; border-radius: 3px;")
+            )
+          )
+        })
         
-        # Return HTML img tag
-        tags$img(src = paste0("data:image/png;base64,", img_base64), 
-                style = "width: 100%; height: auto;")
+        # Return all plots in a container with responsive grid
+        div(
+          style = "width: 100%;",
+          do.call(tagList, plot_list)
+        )
         
       }, error = function(e) {
         p(paste("Error generating plot:", e$message), style = "color: red;")
@@ -794,30 +945,32 @@ server <- function(input, output, session) {
       stats <- simulation_results$data$intervention_stats
       
       paste0(
-        "=== INTERVENTION IMPACT SUMMARY ===\n\n",
-        "Final Prevalence Rates (", stats$end_year, "):\n",
-        sprintf("  Baseline mCPR:       %6.2f%%\n", stats$baseline_mcpr * 100),
-        sprintf("  Intervention mCPR:   %6.2f%%\n", stats$interv_mcpr * 100),
-        sprintf("  Change:             %+6.2f%%\n\n", stats$mcpr_change * 100),
+        "IMPACT SUMMARY\n\n",
+        "mCPR Change:\n",
+        sprintf("  %+.2f%% (%.1f→%.1f%%)\n\n", 
+                stats$mcpr_change * 100,
+                stats$baseline_mcpr * 100,
+                stats$interv_mcpr * 100),
         
-        sprintf("  Baseline CPR:        %6.2f%%\n", stats$baseline_cpr * 100),
-        sprintf("  Intervention CPR:    %6.2f%%\n", stats$interv_cpr * 100),
-        sprintf("  Change:             %+6.2f%%\n\n", stats$cpr_change * 100),
+        "CPR Change:\n",
+        sprintf("  %+.2f%% (%.1f→%.1f%%)\n\n", 
+                stats$cpr_change * 100,
+                stats$baseline_cpr * 100,
+                stats$interv_cpr * 100),
         
-        "Births After Intervention (", stats$intervention_year, "-", stats$end_year, "):\n",
-        sprintf("  Baseline births:        %8d\n", stats$baseline_births),
-        sprintf("  Intervention births:    %8d\n", stats$interv_births),
-        sprintf("  Births averted:         %8d\n", stats$births_averted),
-        sprintf("  Percent reduction:      %7.1f%%\n\n", stats$percent_reduction),
+        "Births Averted:\n",
+        sprintf("  %s (%.1f%%)\n\n",
+                format(stats$births_averted, big.mark=","),
+                stats$percent_reduction),
         
-        "New Method Adoption:\n",
-        sprintf("  Method: %s\n", stats$new_method_label),
-        sprintf("  Adoption rate:          %7.2f%%\n", stats$new_method_adoption),
-        sprintf("  Number of users:        %8d\n", stats$new_method_users)
+        "New Method:\n",
+        sprintf("  %s\n", stats$new_method_label),
+        sprintf("  %.1f%% adoption\n", stats$new_method_adoption),
+        sprintf("  %s users", format(stats$new_method_users, big.mark=","))
       )
       
     } else {
-      "No intervention statistics available.\nRun simulation with intervention enabled to see impact metrics."
+      "Run simulation first"
     }
   })
   

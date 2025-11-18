@@ -2,11 +2,21 @@
 # UI with Tab Panels and Light/Dark Mode
 
 library(shinyjs)
+library(shinybusy)
 
 ui <- fluidPage(
   
   # Enable shinyjs
   useShinyjs(),
+  
+  # Enable shinybusy for loading indicators
+  # This adds the necessary JavaScript and CSS
+  # We'll use show_modal_spinner() in server to control when it appears
+  use_busy_spinner(
+    spin = "fading-circle",
+    color = "#3498db",
+    position = "top-right"
+  ),
   
   # Theme toggle and custom CSS
   tags$head(
@@ -692,34 +702,97 @@ ui <- fluidPage(
           conditionalPanel(
             condition = "input.enable_interventions == true",
             
-            # Plot type selector
+            # Top section: Plot selector in 3 columns (collapsible)
             wellPanel(
-              h4("Select Visualization (New Methods)"),
-              selectInput("intervention_plot_type", "Choose Plot Type:",
-                         choices = c(
-                           "Summary Figure (Comprehensive)" = "summary",
-                           "Injectable Methods Comparison" = "injectables",
-                           "Method Mix Evolution" = "method_mix",
-                           "New Method Adoption" = "adoption",
-                           "Method Comparison Bar Chart" = "method_bar",
-                           "CPR Comparison" = "cpr",
-                           "Births Comparison" = "births"
-                         ),
-                         selected = "summary"),
-              p("Note: These plots are designed for 'Add New Method' interventions.", 
-                style = "font-size: 11px; color: gray; font-style: italic;")
+              style = "background-color: #f8f9fa; margin-bottom: 15px;",
+              
+              # Collapsible header
+              tags$div(
+                style = "cursor: pointer; margin-bottom: 15px;",
+                actionLink("toggle_plot_selector", 
+                           tags$span(
+                             tags$i(class = "fa fa-chevron-down", id = "plot_selector_chevron"),
+                             " Select Visualizations"
+                           ),
+                           style = "font-size: 18px; font-weight: bold; color: #2c3e50; text-decoration: none;")
+              ),
+              
+              # JavaScript to toggle chevron
+              tags$script(HTML("
+                $(document).on('click', '#toggle_plot_selector', function() {
+                  $('#plot_selector_chevron').toggleClass('fa-chevron-right fa-chevron-down');
+                });
+              ")),
+              
+              # Collapsible content (default: expanded)
+              conditionalPanel(
+                condition = "input.toggle_plot_selector % 2 == 0",
+                
+                fluidRow(
+                  # Column 1: Summary
+                  column(
+                    width = 4,
+                    div(
+                      style = "background-color: white; padding: 12px; border-radius: 4px; border-left: 3px solid #3498db;",
+                      h5(strong("SUMMARY"), style = "margin-top: 0; margin-bottom: 10px; color: #3498db;"),
+                      checkboxInput("show_summary", 
+                                   "Summary (All 6 Panels)", 
+                                   value = TRUE),
+                      checkboxInput("show_statistics", 
+                                   "Impact Statistics", 
+                                   value = FALSE)
+                    )
+                  ),
+                  
+                  # Column 2: Individual Panels
+                  column(
+                    width = 4,
+                    div(
+                      style = "background-color: white; padding: 12px; border-radius: 4px; border-left: 3px solid #27ae60;",
+                      h5(strong("INDIVIDUAL PANELS"), style = "margin-top: 0; margin-bottom: 10px; color: #27ae60;"),
+                      checkboxGroupInput("intervention_plot_types", NULL,
+                                        choices = c(
+                                          "1. Adoption Rate" = "adoption_rate",
+                                          "2. Injectable Trends" = "injectable_trends",
+                                          "3. Injectable Share" = "total_injectable",
+                                          "4. Substitution Effects" = "substitution",
+                                          "5. Top 6 Methods" = "top_methods",
+                                          "6. All Methods" = "all_methods"
+                                        ),
+                                        selected = NULL)
+                    )
+                  ),
+                  
+                  # Column 3: Other Analyses
+                  column(
+                    width = 4,
+                    div(
+                      style = "background-color: white; padding: 12px; border-radius: 4px; border-left: 3px solid #e67e22;",
+                      h5(strong("OTHER ANALYSES"), style = "margin-top: 0; margin-bottom: 10px; color: #e67e22;"),
+                      checkboxGroupInput("intervention_plot_types_other", NULL,
+                                        choices = c(
+                                          "Injectable Comparison" = "injectables",
+                                          "Method Mix Evolution" = "method_mix",
+                                          "Adoption (Legacy)" = "adoption",
+                                          "Method Bar Chart" = "method_bar",
+                                          "CPR Comparison" = "cpr",
+                                          "Births Comparison" = "births"
+                                        ),
+                                        selected = NULL),
+                      p("Note: For 'Add New Method' interventions.", 
+                        style = "font-size: 10px; color: #999; font-style: italic; margin-top: 15px; margin-bottom: 0;")
+                    )
+                  )
+                )
+              )
             ),
             
-            # Main intervention plot
+            # Bottom section: Plots (full width)
             wellPanel(
-              h4("New Method Impact Visualization"),
+              style = "min-height: 400px;",
+              h4("New Method Impact Visualization", style = "margin-top: 0; color: #2c3e50;"),
+              hr(),
               uiOutput("intervention_plot_ui")
-            ),
-            
-            # Intervention statistics
-            wellPanel(
-              h4("Intervention Statistics"),
-              verbatimTextOutput("intervention_stats")
             )
           )
         ),

@@ -19,6 +19,10 @@ import matplotlib.pyplot as plt
 import base64
 from io import BytesIO
 
+# Global storage for simulation objects (needed for plotting)
+_cached_baseline_sim = None
+_cached_intervention_sim = None
+
 def run_fp_simulation(params):
     """
     Run family planning simulation with given parameters
@@ -586,6 +590,12 @@ def run_intervention_comparison(params):
         baseline_sim = run_baseline_simulation(params)
         intervention_sim = run_intervention_simulation(params)
     
+    # Cache simulation objects globally for later plotting
+    global _cached_baseline_sim, _cached_intervention_sim
+    _cached_baseline_sim = baseline_sim
+    _cached_intervention_sim = intervention_sim
+    print("[DEBUG] Cached simulation objects for plotting")
+    
     # Extract results from intervention simulation
     results = extract_simulation_results(intervention_sim, params)
     
@@ -605,11 +615,27 @@ def run_intervention_comparison(params):
     
     return results
 
-def generate_intervention_plot_data(baseline_sim, intervention_sim, plot_type, params):
-    """Generate intervention plot as base64 image"""
+def generate_intervention_plot_data(baseline_data, intervention_data, plot_type, params):
+    """
+    Generate intervention plot as base64 image
+    
+    Note: baseline_data and intervention_data are ignored - we use the cached sim objects
+    """
     import sys
     import os
     import inspect
+    
+    global _cached_baseline_sim, _cached_intervention_sim
+    
+    # Check if we have cached simulation objects
+    if _cached_baseline_sim is None or _cached_intervention_sim is None:
+        print("[ERROR] No cached simulation objects found. Run simulation first.")
+        return None
+    
+    print(f"[DEBUG] Generating plot type: {plot_type}")
+    print(f"[DEBUG] Using cached baseline_sim: {type(_cached_baseline_sim)}")
+    print(f"[DEBUG] Using cached intervention_sim: {type(_cached_intervention_sim)}")
+    sys.stdout.flush()
     
     # Get current directory - works with reticulate
     try:
@@ -622,5 +648,7 @@ def generate_intervention_plot_data(baseline_sim, intervention_sim, plot_type, p
         sys.path.insert(0, current_dir)
     
     from fp_simulator_intervention import generate_intervention_plot
-    return generate_intervention_plot(baseline_sim, intervention_sim, plot_type, params)
+    
+    # Use the cached simulation objects
+    return generate_intervention_plot(_cached_baseline_sim, _cached_intervention_sim, plot_type, params)
 

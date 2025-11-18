@@ -123,7 +123,14 @@ def generate_intervention_plot(baseline_sim, intervention_sim, plot_type, params
         plot_new_method_adoption,
         plot_method_comparison_bar,
         plot_cpr_comparison,
-        plot_births_comparison
+        plot_births_comparison,
+        # New individual plot functions
+        plot_new_method_adoption_rate,
+        plot_injectable_new_method_trends,
+        plot_total_injectable_share,
+        plot_method_substitution_effects,
+        plot_top_methods_by_usage,
+        plot_all_methods_final_comparison
     )
     
     try:
@@ -135,6 +142,44 @@ def generate_intervention_plot(baseline_sim, intervention_sim, plot_type, params
                 start_year, end_year, intervention_year, location,
                 save_path=None
             )
+        # New individual plots from the 4-row summary figure
+        elif plot_type == 'adoption_rate':
+            fig = plot_new_method_adoption_rate(
+                baseline_sim, intervention_sim,
+                start_year, end_year, intervention_year, location,
+                save_path=None
+            )
+        elif plot_type == 'injectable_trends':
+            fig = plot_injectable_new_method_trends(
+                baseline_sim, intervention_sim,
+                start_year, end_year, intervention_year, location,
+                save_path=None
+            )
+        elif plot_type == 'total_injectable':
+            fig = plot_total_injectable_share(
+                baseline_sim, intervention_sim,
+                start_year, end_year, intervention_year, location,
+                save_path=None
+            )
+        elif plot_type == 'substitution':
+            fig = plot_method_substitution_effects(
+                baseline_sim, intervention_sim,
+                start_year, end_year, intervention_year, location,
+                save_path=None
+            )
+        elif plot_type == 'top_methods':
+            fig = plot_top_methods_by_usage(
+                baseline_sim, intervention_sim,
+                start_year, end_year, intervention_year, location,
+                save_path=None
+            )
+        elif plot_type == 'all_methods':
+            fig = plot_all_methods_final_comparison(
+                baseline_sim, intervention_sim,
+                start_year, end_year, intervention_year, location,
+                save_path=None
+            )
+        # Original plot types
         elif plot_type == 'injectables':
             fig = plot_injectable_methods_comparison(
                 baseline_sim, intervention_sim,

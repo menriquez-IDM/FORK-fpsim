@@ -20,6 +20,7 @@ cat("1. Installing R packages...\n")
 required_r_packages <- c(
   "shiny",
   "shinyjs",
+  "shinybusy",
   "plotly",
   "DT",
   "reticulate",
